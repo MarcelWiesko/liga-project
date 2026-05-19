@@ -1,0 +1,32 @@
+<h1>System Liga</h1>
+
+<h2>Drużyny</h2>
+<ul>
+    {% for team in teams %}
+        <li>{{ team.name }} - {{ team.city }}</li>
+    {% endfor %}
+</ul>
+
+<h2>Zawodnicy</h2>
+<ul>
+    {% for player in players %}
+        <li>{{ player.first_name }} {{ player.last_name }} - {{ player.team.name }}</li>
+    {% endfor %}
+</ul>
+
+<h2>Mecze</h2>
+<ul>
+    {% for match in matches %}
+        <li>
+            {{ match.home_team.name }} {{ match.home_score }} :
+            {{ match.away_score }} {{ match.away_team.name }}
+        </li>
+    {% endfor %}
+</ul>
+
+<h2>Gole</h2>
+<ul>
+    {% for goal in goals %}
+        <li>{{ goal.player }} - {{ goal.minute }} minuta</li>
+    {% endfor %}
+</ul>

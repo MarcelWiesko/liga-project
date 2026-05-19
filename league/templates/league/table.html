@@ -1,0 +1,27 @@
+<h1>Tabela ligowa</h1>
+
+<table border="1">
+    <tr>
+        <th>Miejsce</th>
+        <th>Drużyna</th>
+        <th>Punkty</th>
+        <th>W</th>
+        <th>R</th>
+        <th>P</th>
+        <th>Bramki</th>
+        <th>Bilans</th>
+    </tr>
+
+    {% for row in table %}
+    <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ row.team.name }}</td>
+        <td>{{ row.points }}</td>
+        <td>{{ row.wins }}</td>
+        <td>{{ row.draws }}</td>
+        <td>{{ row.losses }}</td>
+        <td>{{ row.goals_for }}:{{ row.goals_against }}</td>
+        <td>{{ row.goal_difference }}</td>
+    </tr>
+    {% endfor %}
+</table>
