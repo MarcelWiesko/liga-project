@@ -3,12 +3,13 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Team, Player, Match, Goal
+from .models import Team, Player, Match, Goal, UserProfile
 from .serializers import (
     TeamSerializer,
     PlayerSerializer,
     MatchSerializer,
-    GoalSerializer
+    GoalSerializer,
+    UserProfileSerializer
 )
 
 
@@ -31,6 +32,9 @@ class GoalViewSet(viewsets.ModelViewSet):
     queryset = Goal.objects.all()
     serializer_class = GoalSerializer
 
+class UserProfileViewSet(viewsets.ModelViewSet):
+    queryset = UserProfile.objects.all()
+    serializer_class = UserProfileSerializer
 
 def calculate_league_table():
     teams = Team.objects.all()
