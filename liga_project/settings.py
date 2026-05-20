@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -80,14 +82,11 @@ WSGI_APPLICATION = 'liga_project.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'liga_db',
-        'USER': 'postgres',
-        'PASSWORD': '123456',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-    }
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
 
 # Password validation
