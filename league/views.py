@@ -98,8 +98,48 @@ def api_league_table(request):
 
 @api_view(['GET'])
 def api_best_team(request):
-    table_response = api_league_table(request)
-    table = table_response.data
+    teams = Team.objects.all()
+    table = []
+
+    for team in teams:
+        matches = Match.objects.filter(finished=True).filter(
+            models.Q(home_team=team) | models.Q(away_team=team)
+        )
+
+        points = 0
+        goals_for = 0
+        goals_against = 0
+
+        for match in matches:
+            if match.home_team == team:
+                gf = match.home_score
+                ga = match.away_score
+            else:
+                gf = match.away_score
+                ga = match.home_score
+
+            goals_for += gf
+            goals_against += ga
+
+            if gf > ga:
+                points += 3
+            elif gf == ga:
+                points += 1
+
+        table.append({
+            "team_id": team.id,
+            "team": team.name,
+            "points": points,
+            "goals_for": goals_for,
+            "goals_against": goals_against,
+            "goal_difference": goals_for - goals_against,
+        })
+
+    table = sorted(
+        table,
+        key=lambda x: (x["points"], x["goal_difference"], x["goals_for"]),
+        reverse=True
+    )
 
     if not table:
         return Response({"message": "Brak drużyn w bazie"})
