@@ -31,6 +31,10 @@ ALLOWED_HOSTS = [
     "*",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://systemliga-gkb2gtc6h7grcng8.polandcentral-01.azurewebsites.net",
+    "https://proud-smoke-04f086a03.7.azurestaticapps.net"
+]
 
 # Application definition
 
