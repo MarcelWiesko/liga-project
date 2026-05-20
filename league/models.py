@@ -49,6 +49,21 @@ class Goal(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="goals")
     minute = models.IntegerField()
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        home_goals = self.match.goals.filter(
+            player__team=self.match.home_team
+        ).count()
+
+        away_goals = self.match.goals.filter(
+            player__team=self.match.away_team
+        ).count()
+
+        self.match.home_score = home_goals
+        self.match.away_score = away_goals
+        self.match.save()
+
     def __str__(self):
         return f"{self.player} - {self.minute} min"
 
