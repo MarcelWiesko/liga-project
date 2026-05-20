@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 const API = 'https://systemliga-gkb2gtc6h7grcng8.polandcentral-01.azurewebsites.net/api'
 
@@ -11,17 +11,41 @@ const bestTeam = ref(null)
 const bestPlayer = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const search = ref('')
+
+async function getJson(url) {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('API error')
+  return res.json()
+}
 
 async function loadData() {
   try {
     loading.value = true
+    error.value = null
 
-    teams.value = await fetch(`${API}/teams/`).then(res => res.json())
-    players.value = await fetch(`${API}/players/`).then(res => res.json())
-    matches.value = await fetch(`${API}/matches/`).then(res => res.json())
-    table.value = await fetch(`${API}/table/`).then(res => res.json())
-    bestTeam.value = await fetch(`${API}/best-team/`).then(res => res.json())
-    bestPlayer.value = await fetch(`${API}/best-player/`).then(res => res.json())
+    const [
+      teamsData,
+      playersData,
+      matchesData,
+      tableData,
+      bestTeamData,
+      bestPlayerData
+    ] = await Promise.all([
+      getJson(`${API}/teams/`),
+      getJson(`${API}/players/`),
+      getJson(`${API}/matches/`),
+      getJson(`${API}/table/`),
+      getJson(`${API}/best-team/`),
+      getJson(`${API}/best-player/`)
+    ])
+
+    teams.value = teamsData
+    players.value = playersData
+    matches.value = matchesData
+    table.value = tableData
+    bestTeam.value = bestTeamData
+    bestPlayer.value = bestPlayerData
   } catch (e) {
     error.value = 'Nie udało się pobrać danych z backendu.'
   } finally {
@@ -29,58 +53,99 @@ async function loadData() {
   }
 }
 
+const filteredPlayers = computed(() => {
+  return players.value.filter(player =>
+    `${player.first_name} ${player.last_name} ${player.team_name}`
+      .toLowerCase()
+      .includes(search.value.toLowerCase())
+  )
+})
+
+const finishedMatches = computed(() => matches.value.filter(match => match.finished))
+
 onMounted(loadData)
 </script>
 
 <template>
   <div class="app">
-    <nav class="navbar">
-      <div class="logo">⚽ System Liga</div>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">⚽</div>
+        <div>
+          <h1>System Liga</h1>
+          <p>Panel statystyk</p>
+        </div>
+      </div>
 
-      <div class="nav-links">
+      <nav>
+        <a href="#dashboard">Dashboard</a>
         <a href="#table">Tabela</a>
         <a href="#teams">Drużyny</a>
         <a href="#players">Zawodnicy</a>
         <a href="#matches">Mecze</a>
+      </nav>
+
+      <a
+        class="admin-link"
+        href="https://systemliga-gkb2gtc6h7grcng8.polandcentral-01.azurewebsites.net/admin"
+        target="_blank"
+      >
+        Panel admina
+      </a>
+    </aside>
+
+    <main class="main">
+      <section id="dashboard" class="hero">
+        <div>
+          <span class="badge">Aplikacja SaaS — Azure + Django + Vue</span>
+          <h2>System zarządzania ligą piłkarską</h2>
+          <p>
+            Przeglądaj tabelę ligową, najlepszych zawodników, wyniki meczów
+            i statystyki drużyn w jednym miejscu.
+          </p>
+        </div>
+
+        <button @click="loadData">
+          {{ loading ? 'Ładowanie...' : 'Odśwież dane' }}
+        </button>
+      </section>
+
+      <div v-if="error" class="alert">
+        {{ error }}
       </div>
-    </nav>
-
-    <header class="hero">
-      <h1>System zarządzania ligą piłkarską</h1>
-      <p>
-        Aplikacja prezentuje tabelę ligową, najlepszą drużynę,
-        najlepszego zawodnika oraz wyniki meczów.
-      </p>
-    </header>
-
-    <main class="container">
-      <div v-if="loading" class="info">Ładowanie danych...</div>
-      <div v-if="error" class="error">{{ error }}</div>
 
       <section class="stats">
-        <div class="stat-card">
+        <div class="stat-card green">
           <span>Najlepsza drużyna</span>
-          <h2>{{ bestTeam?.team || 'Brak danych' }}</h2>
+          <h3>{{ bestTeam?.team || 'Brak danych' }}</h3>
           <p>{{ bestTeam?.points ?? 0 }} pkt</p>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card blue">
           <span>Najlepszy zawodnik</span>
-          <h2>{{ bestPlayer?.player || 'Brak danych' }}</h2>
+          <h3>{{ bestPlayer?.player || 'Brak danych' }}</h3>
           <p>{{ bestPlayer?.goals ?? 0 }} goli</p>
         </div>
 
-        <div class="stat-card">
-          <span>Liczba drużyn</span>
-          <h2>{{ teams.length }}</h2>
+        <div class="stat-card orange">
+          <span>Drużyny</span>
+          <h3>{{ teams.length }}</h3>
           <p>w systemie</p>
+        </div>
+
+        <div class="stat-card purple">
+          <span>Mecze zakończone</span>
+          <h3>{{ finishedMatches.length }}</h3>
+          <p>rozegranych</p>
         </div>
       </section>
 
       <section id="table" class="card">
-        <div class="section-header">
-          <h2>Tabela ligowa</h2>
-          <button @click="loadData">Odśwież</button>
+        <div class="card-header">
+          <div>
+            <h2>Tabela ligowa</h2>
+            <p>Ranking drużyn według punktów, bilansu bramek i zdobytych goli.</p>
+          </div>
         </div>
 
         <div class="table-wrapper">
@@ -100,9 +165,11 @@ onMounted(loadData)
 
             <tbody>
               <tr v-for="(row, index) in table" :key="row.team_id">
-                <td>{{ index + 1 }}</td>
-                <td class="team-name">{{ row.team }}</td>
-                <td><strong>{{ row.points }}</strong></td>
+                <td>
+                  <span class="place">{{ index + 1 }}</span>
+                </td>
+                <td class="strong">{{ row.team }}</td>
+                <td class="points">{{ row.points }}</td>
                 <td>{{ row.wins }}</td>
                 <td>{{ row.draws }}</td>
                 <td>{{ row.losses }}</td>
@@ -116,38 +183,74 @@ onMounted(loadData)
 
       <section class="grid">
         <div id="teams" class="card">
-          <h2>Drużyny</h2>
+          <div class="card-header">
+            <div>
+              <h2>Drużyny</h2>
+              <p>Lista zespołów dodanych w panelu administratora.</p>
+            </div>
+          </div>
 
-          <ul class="list">
-            <li v-for="team in teams" :key="team.id">
-              <strong>{{ team.name }}</strong>
-              <span>{{ team.city || 'Brak miasta' }}</span>
-            </li>
-          </ul>
+          <div class="team-list">
+            <div v-for="team in teams" :key="team.id" class="team-item">
+              <div class="team-avatar">
+                {{ team.name?.charAt(0) }}
+              </div>
+              <div>
+                <strong>{{ team.name }}</strong>
+                <p>{{ team.city || 'Brak miasta' }}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div id="players" class="card">
-          <h2>Zawodnicy</h2>
+          <div class="card-header">
+            <div>
+              <h2>Zawodnicy</h2>
+              <p>Wyszukaj zawodnika po nazwisku lub drużynie.</p>
+            </div>
+          </div>
 
-          <ul class="list">
-            <li v-for="player in players" :key="player.id">
-              <strong>{{ player.first_name }} {{ player.last_name }}</strong>
-              <span>{{ player.team_name }}</span>
-            </li>
-          </ul>
+          <input
+            v-model="search"
+            class="search"
+            type="text"
+            placeholder="Szukaj zawodnika..."
+          >
+
+          <div class="player-list">
+            <div v-for="player in filteredPlayers" :key="player.id" class="player-item">
+              <div>
+                <strong>{{ player.first_name }} {{ player.last_name }}</strong>
+                <p>{{ player.team_name }}</p>
+              </div>
+              <span>#{{ player.shirt_number || '-' }}</span>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="matches" class="card">
-        <h2>Mecze</h2>
+        <div class="card-header">
+          <div>
+            <h2>Mecze</h2>
+            <p>Wyniki spotkań pobierane z backendu Django API.</p>
+          </div>
+        </div>
 
         <div class="matches">
           <div v-for="match in matches" :key="match.id" class="match-card">
-            <div class="club">{{ match.home_team_name }}</div>
+            <div class="club left">
+              {{ match.home_team_name }}
+            </div>
+
             <div class="score">
               {{ match.home_score }} : {{ match.away_score }}
             </div>
-            <div class="club">{{ match.away_team_name }}</div>
+
+            <div class="club right">
+              {{ match.away_team_name }}
+            </div>
           </div>
         </div>
       </section>
@@ -156,109 +259,211 @@ onMounted(loadData)
 </template>
 
 <style scoped>
+* {
+  box-sizing: border-box;
+}
+
 .app {
   min-height: 100vh;
-  background: #f3f6fb;
-  color: #1f2937;
-  font-family: Arial, sans-serif;
+  background: #eef2f7;
+  color: #0f172a;
+  font-family: Inter, Arial, sans-serif;
+  display: flex;
 }
 
-.navbar {
-  background: #0f172a;
+.sidebar {
+  width: 280px;
+  min-height: 100vh;
+  background: #020617;
   color: white;
-  padding: 18px 40px;
+  padding: 28px;
+  position: sticky;
+  top: 0;
+}
+
+.brand {
   display: flex;
-  justify-content: space-between;
+  gap: 14px;
   align-items: center;
+  margin-bottom: 34px;
 }
 
-.logo {
-  font-weight: 800;
+.brand-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #22c55e, #14b8a6);
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  font-size: 24px;
+}
+
+.brand h1 {
   font-size: 22px;
+  margin: 0;
 }
 
-.nav-links {
-  display: flex;
-  gap: 22px;
+.brand p {
+  margin: 4px 0 0;
+  color: #94a3b8;
 }
 
-.nav-links a {
-  color: white;
+nav {
+  display: grid;
+  gap: 10px;
+}
+
+nav a,
+.admin-link {
+  color: #cbd5e1;
   text-decoration: none;
-  font-weight: 600;
+  padding: 13px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: 0.2s;
 }
 
-.hero {
-  background: linear-gradient(135deg, #16a34a, #0f766e);
+nav a:hover,
+.admin-link:hover {
+  background: #1e293b;
   color: white;
-  padding: 60px 30px;
+}
+
+.admin-link {
+  display: block;
+  margin-top: 30px;
+  background: #16a34a;
+  color: white;
   text-align: center;
 }
 
-.hero h1 {
-  font-size: 42px;
-  margin-bottom: 12px;
+.main {
+  flex: 1;
+  padding: 34px;
+  max-width: 1400px;
+}
+
+.hero {
+  background: linear-gradient(135deg, #0f172a, #14532d);
+  color: white;
+  padding: 38px;
+  border-radius: 26px;
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  align-items: center;
+  margin-bottom: 26px;
+}
+
+.badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.hero h2 {
+  font-size: 38px;
+  margin: 0 0 12px;
 }
 
 .hero p {
-  max-width: 760px;
-  margin: 0 auto;
-  font-size: 18px;
+  color: #d1fae5;
+  max-width: 720px;
+  margin: 0;
+  line-height: 1.6;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 30px;
+button {
+  background: white;
+  color: #14532d;
+  border: none;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.alert {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  font-weight: 700;
 }
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 26px;
 }
 
 .stat-card,
 .card {
   background: white;
-  border-radius: 18px;
+  border-radius: 24px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card {
+  border-left: 6px solid #22c55e;
+}
+
+.stat-card.blue {
+  border-left-color: #3b82f6;
+}
+
+.stat-card.orange {
+  border-left-color: #f97316;
+}
+
+.stat-card.purple {
+  border-left-color: #8b5cf6;
 }
 
 .stat-card span {
   color: #64748b;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
-.stat-card h2 {
+.stat-card h3 {
+  font-size: 28px;
   margin: 12px 0 6px;
-  font-size: 26px;
 }
 
 .stat-card p {
   margin: 0;
   color: #16a34a;
-  font-weight: 700;
+  font-weight: 900;
 }
 
-.section-header {
+.card {
+  margin-bottom: 26px;
+}
+
+.card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  margin-bottom: 18px;
 }
 
-button {
-  background: #16a34a;
-  color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 10px;
-  font-weight: 700;
-  cursor: pointer;
+.card-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.card-header p {
+  margin: 6px 0 0;
+  color: #64748b;
 }
 
 .table-wrapper {
@@ -268,53 +473,103 @@ button {
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 18px;
 }
 
 th {
-  background: #f1f5f9;
+  background: #f8fafc;
   color: #475569;
+  font-size: 13px;
+  text-transform: uppercase;
 }
 
 th,
 td {
-  padding: 14px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
   text-align: left;
 }
 
-.team-name {
-  font-weight: 700;
+.place {
+  width: 34px;
+  height: 34px;
+  background: #dcfce7;
+  color: #166534;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-weight: 900;
+}
+
+.strong,
+.points {
+  font-weight: 900;
 }
 
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 22px;
-  margin: 30px 0;
+  gap: 26px;
 }
 
-.list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.team-list,
+.player-list {
+  display: grid;
+  gap: 12px;
 }
 
-.list li {
-  padding: 14px 0;
-  border-bottom: 1px solid #e5e7eb;
+.team-item,
+.player-item {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  padding: 16px;
+  border-radius: 18px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 15px;
 }
 
-.list span {
+.team-item {
+  justify-content: flex-start;
+  gap: 14px;
+}
+
+.team-avatar {
+  width: 44px;
+  height: 44px;
+  background: #dcfce7;
+  color: #166534;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  font-weight: 900;
+}
+
+.team-item p,
+.player-item p {
+  margin: 4px 0 0;
   color: #64748b;
+}
+
+.player-item span {
+  background: #e0f2fe;
+  color: #075985;
+  padding: 8px 11px;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.search {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  margin-bottom: 16px;
+  font-size: 15px;
 }
 
 .matches {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .match-card {
@@ -322,68 +577,75 @@ td {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   background: #f8fafc;
+  border-radius: 18px;
   padding: 18px;
-  border-radius: 14px;
+  border: 1px solid #e5e7eb;
 }
 
 .club {
-  font-weight: 700;
+  font-weight: 900;
 }
 
-.club:last-child {
+.club.right {
   text-align: right;
 }
 
 .score {
-  background: #0f172a;
+  background: #020617;
   color: white;
-  padding: 10px 18px;
-  border-radius: 12px;
-  font-weight: 800;
+  padding: 12px 22px;
+  border-radius: 14px;
+  font-weight: 900;
+  font-size: 18px;
 }
 
-.info {
-  background: #e0f2fe;
-  padding: 14px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-}
-
-.error {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 14px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-}
-
-@media (max-width: 800px) {
-  .navbar {
+@media (max-width: 1000px) {
+  .app {
     flex-direction: column;
-    gap: 15px;
   }
 
-  .nav-links {
-    flex-wrap: wrap;
-    justify-content: center;
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    position: static;
   }
 
-  .hero h1 {
-    font-size: 30px;
+  nav {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .stats,
-  .grid {
+  .hero,
+  .grid,
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .main {
+    padding: 18px;
+  }
+
+  .hero h2 {
+    font-size: 28px;
+  }
+
+  .stats {
     grid-template-columns: 1fr;
   }
 
   .match-card {
     grid-template-columns: 1fr;
+    gap: 12px;
     text-align: center;
-    gap: 10px;
   }
 
-  .club:last-child {
+  .club.right {
     text-align: center;
   }
 }
