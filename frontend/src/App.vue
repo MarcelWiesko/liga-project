@@ -8,7 +8,7 @@ const table = ref([])
 const bestTeam = ref(null)
 const bestPlayer = ref(null)
 
-const API = 'http://127.0.0.1:8000/api'
+const API = 'https://systemliga-gkb2gtc6h7grcng8.polandcentral-01.azurewebsites.net/api'
 
 onMounted(async () => {
   teams.value = await fetch(`${API}/teams/`).then(res => res.json())
