@@ -130,8 +130,12 @@ def api_login(request):
 # =========================
 
 def calculate_league_table(league_id=None):
-
-    teams = Team.objects.all()
+    if league_id:
+        teams = Team.objects.filter(
+            league_id=league_id
+        )
+    else:
+        teams = Team.objects.all()
     table = []
 
     for team in teams:
