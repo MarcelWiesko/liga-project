@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import AllowAny
 
 from .models import (
     Team,
@@ -233,6 +234,7 @@ def api_best_player_against_team(request, team_id):
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def api_login(request):
 
     username = request.data.get("username")
