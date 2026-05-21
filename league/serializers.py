@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Team, Player, Match, Goal, UserProfile
+from .models import Team, Player, Match, Goal, UserProfile, League, Scheduler
 
 
 class TeamSerializer(serializers.ModelSerializer):
@@ -42,4 +42,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
+        fields = '__all__'
+
+class LeagueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = League
+        fields = '__all__'
+
+
+class SchedulerSerializer(serializers.ModelSerializer):
+    league_name = serializers.CharField(source='league.name', read_only=True)
+
+    class Meta:
+        model = Scheduler
         fields = '__all__'

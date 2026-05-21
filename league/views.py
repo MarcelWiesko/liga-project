@@ -1,15 +1,29 @@
 from django.db import models
-from rest_framework import viewsets
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
+from django.contrib.auth import authenticate
 
-from .models import Team, Player, Match, Goal, UserProfile
+from rest_framework import viewsets
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
+
+from .models import (
+    Team,
+    Player,
+    Match,
+    Goal,
+    League,
+    Scheduler,
+    UserProfile
+)
+
 from .serializers import (
     TeamSerializer,
     PlayerSerializer,
     MatchSerializer,
     GoalSerializer,
-    UserProfileSerializer
+    LeagueSerializer,
+    SchedulerSerializer
 )
 
 
@@ -32,17 +46,27 @@ class GoalViewSet(viewsets.ModelViewSet):
     queryset = Goal.objects.all()
     serializer_class = GoalSerializer
 
-class UserProfileViewSet(viewsets.ModelViewSet):
-    queryset = UserProfile.objects.all()
-    serializer_class = UserProfileSerializer
+
+class LeagueViewSet(viewsets.ModelViewSet):
+    queryset = League.objects.all()
+    serializer_class = LeagueSerializer
+
+
+class SchedulerViewSet(viewsets.ModelViewSet):
+    queryset = Scheduler.objects.all()
+    serializer_class = SchedulerSerializer
+
 
 def calculate_league_table():
+
     teams = Team.objects.all()
     table = []
 
     for team in teams:
+
         matches = Match.objects.filter(finished=True).filter(
-            models.Q(home_team=team) | models.Q(away_team=team)
+            models.Q(home_team=team) |
+            models.Q(away_team=team)
         )
 
         points = 0
@@ -101,11 +125,13 @@ def calculate_league_table():
 
 @api_view(['GET'])
 def api_league_table(request):
+
     return Response(calculate_league_table())
 
 
 @api_view(['GET'])
 def api_best_team(request):
+
     table = calculate_league_table()
 
     if not table:
@@ -118,6 +144,7 @@ def api_best_team(request):
 
 @api_view(['GET'])
 def api_best_player(request):
+
     players = Player.objects.all()
 
     ranking = []
@@ -150,7 +177,13 @@ def api_best_player(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def api_best_player_against_team(request, team_id):
+
+    if request.user.userprofile.role != "manager":
+        return Response({
+            "message": "Brak uprawnień"
+        }, status=403)
 
     try:
         selected_team = Team.objects.get(id=team_id)
@@ -197,3 +230,60 @@ def api_best_player_against_team(request, team_id):
         })
 
     return Response(result[0])
+
+
+@api_view(['POST'])
+def api_login(request):
+
+    username = request.data.get("username")
+    password = request.data.get("password")
+
+    user = authenticate(
+        username=username,
+        password=password
+    )
+
+    if user is None:
+        return Response({
+            "success": False,
+            "message": "Nieprawidłowy login lub hasło"
+        }, status=401)
+
+    token, created = Token.objects.get_or_create(user=user)
+
+    role = "user"
+
+    if hasattr(user, "userprofile"):
+        role = user.userprofile.role
+
+    return Response({
+        "success": True,
+        "token": token.key,
+        "username": user.username,
+        "role": role
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_add_goal(request):
+
+    if request.user.userprofile.role != "referee":
+        return Response({
+            "message": "Brak uprawnień"
+        }, status=403)
+
+    match_id = request.data.get("match")
+    player_id = request.data.get("player")
+    minute = request.data.get("minute")
+
+    goal = Goal.objects.create(
+        match_id=match_id,
+        player_id=player_id,
+        minute=minute
+    )
+
+    return Response({
+        "message": "Gol dodany",
+        "goal_id": goal.id
+    })

@@ -8,6 +8,8 @@ router.register('players', views.PlayerViewSet)
 router.register('matches', views.MatchViewSet)
 router.register('goals', views.GoalViewSet)
 router.register('profiles', views.UserProfileViewSet)
+router.register('leagues', views.LeagueViewSet)
+router.register('schedulers', views.SchedulerViewSet)
 
 urlpatterns = [
 
@@ -20,4 +22,5 @@ urlpatterns = [
         views.api_best_player_against_team,
         name='api_best_player_against_team'
     ),
+    path('api/add-goal/', views.api_add_goal),
 ]
