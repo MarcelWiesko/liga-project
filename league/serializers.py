@@ -52,6 +52,11 @@ class LeagueSerializer(serializers.ModelSerializer):
 
 class SchedulerSerializer(serializers.ModelSerializer):
     league_name = serializers.CharField(source='league.name', read_only=True)
+    home_team_name = serializers.CharField(source='match.home_team.name', read_only=True)
+    away_team_name = serializers.CharField(source='match.away_team.name', read_only=True)
+    home_score = serializers.IntegerField(source='match.home_score', read_only=True)
+    away_score = serializers.IntegerField(source='match.away_score', read_only=True)
+    finished = serializers.BooleanField(source='match.finished', read_only=True)
 
     class Meta:
         model = Scheduler

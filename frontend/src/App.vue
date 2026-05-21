@@ -9,6 +9,10 @@ const role = ref(localStorage.getItem('role'))
 const token = ref(localStorage.getItem('token'))
 const isLoggedIn = ref(!!token.value)
 
+const leagues = ref([])
+const selectedLeague = ref('')
+const schedulers = ref([])
+
 const teams = ref([])
 const players = ref([])
 const matches = ref([])
@@ -28,9 +32,19 @@ const loginError = ref(null)
 const successMessage = ref(null)
 const search = ref('')
 
-async function getJson(url) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error('API error')
+async function getJson(url, auth = false) {
+  const headers = {}
+
+  if (auth && token.value) {
+    headers.Authorization = `Token ${token.value}`
+  }
+
+  const res = await fetch(url, { headers })
+
+  if (!res.ok) {
+    throw new Error('API error')
+  }
+
   return res.json()
 }
 
@@ -39,22 +53,20 @@ async function loadData() {
     loading.value = true
     error.value = null
 
-    const [teamsData, playersData, matchesData, tableData, bestTeamData, bestPlayerData] =
-      await Promise.all([
-        getJson(`${API}/teams/`),
-        getJson(`${API}/players/`),
-        getJson(`${API}/matches/`),
-        getJson(`${API}/table/`),
-        getJson(`${API}/best-team/`),
-        getJson(`${API}/best-player/`)
-      ])
+    leagues.value = await getJson(`${API}/leagues/`)
 
-    teams.value = teamsData
-    players.value = playersData
-    matches.value = matchesData
-    table.value = tableData
-    bestTeam.value = bestTeamData
-    bestPlayer.value = bestPlayerData
+    if (!selectedLeague.value && leagues.value.length > 0) {
+      selectedLeague.value = leagues.value[0].id
+    }
+
+    teams.value = await getJson(`${API}/teams/`)
+    players.value = await getJson(`${API}/players/`)
+    matches.value = await getJson(`${API}/matches/`)
+    schedulers.value = await getJson(`${API}/schedulers/`)
+
+    table.value = await getJson(`${API}/table/?league_id=${selectedLeague.value}`)
+    bestTeam.value = await getJson(`${API}/best-team/?league_id=${selectedLeague.value}`)
+    bestPlayer.value = await getJson(`${API}/best-player/`)
   } catch (e) {
     error.value = 'Nie udało się pobrać danych z backendu.'
   } finally {
@@ -102,6 +114,11 @@ function logout() {
   isLoggedIn.value = false
 }
 
+async function changeLeague() {
+  bestAgainstTeam.value = null
+  await loadData()
+}
+
 async function addGoal() {
   successMessage.value = null
   error.value = null
@@ -138,6 +155,11 @@ async function getBestAgainstTeam() {
   bestAgainstTeam.value = null
   error.value = null
 
+  if (!selectedTeam.value) {
+    error.value = 'Wybierz drużynę.'
+    return
+  }
+
   const response = await fetch(`${API}/best-player-against-team/${selectedTeam.value}/`, {
     headers: {
       Authorization: `Token ${token.value}`
@@ -160,6 +182,10 @@ const filteredPlayers = computed(() =>
       .toLowerCase()
       .includes(search.value.toLowerCase())
   )
+)
+
+const filteredSchedulers = computed(() =>
+  schedulers.value.filter(item => String(item.league) === String(selectedLeague.value))
 )
 
 const finishedMatches = computed(() => matches.value.filter(match => match.finished))
@@ -185,6 +211,7 @@ onMounted(() => {
       <nav v-if="isLoggedIn">
         <a href="#dashboard">Dashboard</a>
         <a href="#table">Tabela</a>
+        <a href="#scheduler">Terminarz</a>
         <a href="#teams">Drużyny</a>
         <a href="#players">Zawodnicy</a>
         <a href="#matches">Mecze</a>
@@ -218,7 +245,7 @@ onMounted(() => {
             <span class="badge">Rola: {{ role }}</span>
             <h2>System zarządzania ligą piłkarską</h2>
             <p>
-              Przeglądaj tabelę ligową, mecze, zawodników i statystyki.
+              Wybieraj ligę, sprawdzaj tabelę, terminarz, mecze oraz statystyki zawodników.
             </p>
           </div>
 
@@ -229,6 +256,17 @@ onMounted(() => {
 
         <div v-if="error" class="alert">{{ error }}</div>
         <div v-if="successMessage" class="success">{{ successMessage }}</div>
+
+        <section class="card">
+          <h2>Wybór ligi</h2>
+
+          <select v-model="selectedLeague" @change="changeLeague">
+            <option value="">Wybierz ligę</option>
+            <option v-for="league in leagues" :key="league.id" :value="league.id">
+              {{ league.name }} — {{ league.season }}
+            </option>
+          </select>
+        </section>
 
         <section class="stats">
           <div class="stat-card green">
@@ -287,6 +325,27 @@ onMounted(() => {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section id="scheduler" class="card">
+          <h2>Terminarz ligi</h2>
+
+          <div v-if="filteredSchedulers.length === 0" class="empty">
+            Brak terminarza dla wybranej ligi.
+          </div>
+
+          <div v-for="item in filteredSchedulers" :key="item.id" class="schedule-item">
+            <div>
+              <strong>Kolejka {{ item.round_number }}</strong>
+              <p>{{ new Date(item.planned_date).toLocaleString() }}</p>
+            </div>
+
+            <div class="schedule-match">
+              {{ item.home_team_name }}
+              <span>{{ item.home_score }} : {{ item.away_score }}</span>
+              {{ item.away_team_name }}
+            </div>
           </div>
         </section>
 
@@ -570,9 +629,10 @@ th {
   justify-content: space-between;
 }
 
-.match-card {
+.match-card,
+.schedule-item {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr auto;
   gap: 20px;
   background: #f8fafc;
   padding: 16px;
@@ -581,12 +641,28 @@ th {
   align-items: center;
 }
 
-.match-card span {
+.match-card {
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.match-card span,
+.schedule-match span {
   background: #020617;
   color: white;
   padding: 10px 18px;
   border-radius: 12px;
   font-weight: 900;
+}
+
+.schedule-match {
+  font-weight: 700;
+}
+
+.empty {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 14px;
+  color: #64748b;
 }
 
 .result {

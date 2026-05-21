@@ -3,10 +3,12 @@ from django.contrib.auth import authenticate
 
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import (
+    IsAuthenticated,
+    AllowAny
+)
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from rest_framework.permissions import AllowAny
 
 from .models import (
     Team,
@@ -14,8 +16,7 @@ from .models import (
     Match,
     Goal,
     League,
-    Scheduler,
-    UserProfile
+    Scheduler
 )
 
 from .serializers import (
@@ -27,6 +28,10 @@ from .serializers import (
     SchedulerSerializer
 )
 
+
+# =========================
+# VIEWSETS
+# =========================
 
 class TeamViewSet(viewsets.ModelViewSet):
     queryset = Team.objects.all()
@@ -58,17 +63,65 @@ class SchedulerViewSet(viewsets.ModelViewSet):
     serializer_class = SchedulerSerializer
 
 
-def calculate_league_table():
+# =========================
+# LOGIN
+# =========================
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_login(request):
+
+    username = request.data.get("username", "").strip()
+    password = request.data.get("password", "")
+
+    user = authenticate(
+        username=username,
+        password=password
+    )
+
+    if user is None:
+        return Response({
+            "success": False,
+            "message": "Nieprawidłowy login lub hasło"
+        }, status=401)
+
+    token, created = Token.objects.get_or_create(user=user)
+
+    role = "user"
+
+    if hasattr(user, "userprofile"):
+        role = user.userprofile.role
+
+    return Response({
+        "success": True,
+        "token": token.key,
+        "username": user.username,
+        "role": role
+    })
+
+
+# =========================
+# TABELA LIGOWA
+# =========================
+
+def calculate_league_table(league_id=None):
 
     teams = Team.objects.all()
     table = []
 
     for team in teams:
 
-        matches = Match.objects.filter(finished=True).filter(
+        matches = Match.objects.filter(
+            finished=True
+        ).filter(
             models.Q(home_team=team) |
             models.Q(away_team=team)
         )
+
+        if league_id:
+            matches = matches.filter(
+                schedule__league_id=league_id
+            )
 
         points = 0
         wins = 0
@@ -124,16 +177,32 @@ def calculate_league_table():
     )
 
 
+# =========================
+# API TABLE
+# =========================
+
 @api_view(['GET'])
 def api_league_table(request):
 
-    return Response(calculate_league_table())
+    league_id = request.GET.get("league_id")
 
+    return Response(
+        calculate_league_table(league_id)
+    )
+
+
+# =========================
+# BEST TEAM
+# =========================
 
 @api_view(['GET'])
 def api_best_team(request):
 
-    table = calculate_league_table()
+    league_id = request.GET.get("league_id")
+
+    table = calculate_league_table(
+        league_id
+    )
 
     if not table:
         return Response({
@@ -142,6 +211,10 @@ def api_best_team(request):
 
     return Response(table[0])
 
+
+# =========================
+# BEST PLAYER
+# =========================
 
 @api_view(['GET'])
 def api_best_player(request):
@@ -177,6 +250,10 @@ def api_best_player(request):
     return Response(ranking[0])
 
 
+# =========================
+# BEST PLAYER AGAINST TEAM
+# =========================
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_best_player_against_team(request, team_id):
@@ -187,7 +264,9 @@ def api_best_player_against_team(request, team_id):
         }, status=403)
 
     try:
-        selected_team = Team.objects.get(id=team_id)
+        selected_team = Team.objects.get(
+            id=team_id
+        )
 
     except Team.DoesNotExist:
         return Response({
@@ -233,38 +312,9 @@ def api_best_player_against_team(request, team_id):
     return Response(result[0])
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def api_login(request):
-
-    username = request.data.get("username")
-    password = request.data.get("password")
-
-    user = authenticate(
-        username=username,
-        password=password
-    )
-
-    if user is None:
-        return Response({
-            "success": False,
-            "message": "Nieprawidłowy login lub hasło"
-        }, status=401)
-
-    token, created = Token.objects.get_or_create(user=user)
-
-    role = "user"
-
-    if hasattr(user, "userprofile"):
-        role = user.userprofile.role
-
-    return Response({
-        "success": True,
-        "token": token.key,
-        "username": user.username,
-        "role": role
-    })
-
+# =========================
+# ADD GOAL
+# =========================
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -284,6 +334,15 @@ def api_add_goal(request):
         player_id=player_id,
         minute=minute
     )
+
+    match = Match.objects.get(id=match_id)
+
+    if goal.player.team == match.home_team:
+        match.home_score += 1
+    else:
+        match.away_score += 1
+
+    match.save()
 
     return Response({
         "message": "Gol dodany",
