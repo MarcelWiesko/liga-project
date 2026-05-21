@@ -7,7 +7,7 @@ router.register('teams', views.TeamViewSet)
 router.register('players', views.PlayerViewSet)
 router.register('matches', views.MatchViewSet)
 router.register('goals', views.GoalViewSet)
-router.register('profiles', views.UserProfileViewSet)
+
 router.register('leagues', views.LeagueViewSet)
 router.register('schedulers', views.SchedulerViewSet)
 
