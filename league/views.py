@@ -16,7 +16,8 @@ from .models import (
     Match,
     Goal,
     League,
-    Scheduler
+    Scheduler,
+    UserProfile
 )
 
 from .serializers import (
@@ -133,7 +134,42 @@ def api_login(request):
         "role": role
     })
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_register(request):
+    username = request.data.get("username", "").strip()
+    password = request.data.get("password", "")
+    role = request.data.get("role", "user")
 
+    if not username or not password:
+        return Response({
+            "success": False,
+            "message": "Podaj login i hasło"
+        }, status=400)
+
+    if User.objects.filter(username=username).exists():
+        return Response({
+            "success": False,
+            "message": "Użytkownik już istnieje"
+        }, status=400)
+
+    if role not in ["user", "referee", "manager"]:
+        role = "user"
+
+    user = User.objects.create_user(
+        username=username,
+        password=password
+    )
+
+    UserProfile.objects.create(
+        user=user,
+        role=role
+    )
+
+    return Response({
+        "success": True,
+        "message": "Konto zostało utworzone"
+    })
 # =========================
 # TABELA LIGOWA
 # =========================

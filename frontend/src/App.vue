@@ -9,6 +9,12 @@ const role = ref(localStorage.getItem('role'))
 const token = ref(localStorage.getItem('token'))
 const isLoggedIn = ref(!!token.value)
 
+const registerUsername = ref('')
+const registerPassword = ref('')
+const registerRole = ref('user')
+const registerMessage = ref(null)
+const showRegister = ref(false)
+
 const leagues = ref([])
 const selectedLeague = ref('')
 const schedulers = ref([])
@@ -78,6 +84,36 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+async function register() {
+  registerMessage.value = null
+  loginError.value = null
+
+  const response = await fetch(`${API}/register/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: registerUsername.value,
+      password: registerPassword.value,
+      role: registerRole.value
+    })
+  })
+
+  const data = await response.json()
+
+  if (!response.ok || !data.success) {
+    loginError.value = data.message || 'Nie udało się utworzyć konta'
+    return
+  }
+
+  registerMessage.value = 'Konto utworzone. Możesz się zalogować.'
+  registerUsername.value = ''
+  registerPassword.value = ''
+  registerRole.value = 'user'
+  showRegister.value = false
 }
 
 async function login() {
@@ -239,7 +275,38 @@ onMounted(() => {
         <input v-model="password" type="password" placeholder="Hasło">
 
         <button @click="login">Zaloguj</button>
+        <input v-model="username" type="text" placeholder="Login">
+        <input v-model="password" type="password" placeholder="Hasło">
 
+        <button @click="login">Zaloguj</button>
+
+        <button class="secondary" @click="showRegister = !showRegister">
+          {{ showRegister ? 'Ukryj rejestrację' : 'Utwórz konto' }}
+        </button>
+
+        <div v-if="showRegister" class="register-box">
+          <h3>Rejestracja</h3>
+
+          <input v-model="registerUsername" type="text" placeholder="Nowy login">
+
+          <input v-model="registerPassword" type="password" placeholder="Nowe hasło">
+
+          <select v-model="registerRole">
+            <option value="user">Użytkownik</option>
+            <option value="referee">Sędzia</option>
+            <option value="manager">Menadżer</option>
+          </select>
+
+          <button @click="register">Zarejestruj</button>
+        </div>
+
+        <div v-if="registerMessage" class="success">
+          {{ registerMessage }}
+        </div>
+
+        <div v-if="loginError" class="alert">
+          {{ loginError }}
+        </div>
         <div v-if="loginError" class="alert">
           {{ loginError }}
         </div>
@@ -513,6 +580,17 @@ nav a:hover {
 .main {
   flex: 1;
   padding: 34px;
+}
+.secondary {
+  background: #0f172a;
+  margin-top: 10px;
+}
+
+.register-box {
+  margin-top: 20px;
+  padding: 18px;
+  background: #f8fafc;
+  border-radius: 16px;
 }
 
 .login-card,

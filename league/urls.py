@@ -13,6 +13,7 @@ router.register('schedulers', views.SchedulerViewSet, basename='schedulers')
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/login/', views.api_login),
+    path('api/register/', views.api_register),
     path('api/table/', views.api_league_table),
     path('api/best-team/', views.api_best_team),
     path('api/best-player/', views.api_best_player),
