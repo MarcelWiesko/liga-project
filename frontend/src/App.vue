@@ -275,10 +275,6 @@ onMounted(() => {
         <input v-model="password" type="password" placeholder="Hasło">
 
         <button @click="login">Zaloguj</button>
-        <input v-model="username" type="text" placeholder="Login">
-        <input v-model="password" type="password" placeholder="Hasło">
-
-        <button @click="login">Zaloguj</button>
 
         <button class="secondary" @click="showRegister = !showRegister">
           {{ showRegister ? 'Ukryj rejestrację' : 'Utwórz konto' }}
