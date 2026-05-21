@@ -263,16 +263,22 @@ onMounted(() => {
         <div v-if="error" class="alert">{{ error }}</div>
         <div v-if="successMessage" class="success">{{ successMessage }}</div>
 
-        <section class="card">
-          <h2>Wybór ligi</h2>
+      <section class="league-select-card">
+        <div>
+          <span class="section-label">Aktywna liga</span>
+          <h2>Wybierz rozgrywki</h2>
+          <p>Po zmianie ligi tabela, terminarz i drużyny zostaną automatycznie odświeżone.</p>
+        </div>
 
+        <div class="league-control">
           <select v-model="selectedLeague" @change="changeLeague">
             <option value="">Wybierz ligę</option>
             <option v-for="league in leagues" :key="league.id" :value="league.id">
               {{ league.name }} — {{ league.season }}
             </option>
           </select>
-        </section>
+        </div>
+      </section>
 
         <section class="stats">
           <div class="stat-card green">
@@ -676,6 +682,73 @@ th {
   margin-top: 16px;
   padding: 16px;
   border-radius: 14px;
+}
+
+.league-select-card {
+  background: linear-gradient(135deg, #ffffff, #ecfdf5);
+  border: 1px solid #bbf7d0;
+  border-radius: 24px;
+  padding: 26px;
+  margin-bottom: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.section-label {
+  display: inline-block;
+  background: #dcfce7;
+  color: #166534;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.league-select-card h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.league-select-card p {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.league-control {
+  min-width: 320px;
+}
+
+.league-control select {
+  width: 100%;
+  padding: 15px 18px;
+  border: 2px solid #22c55e;
+  border-radius: 16px;
+  background: white;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.league-control select:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+}
+
+@media (max-width: 900px) {
+  .league-select-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .league-control {
+    min-width: 100%;
+  }
 }
 
 @media (max-width: 900px) {
