@@ -23,4 +23,5 @@ urlpatterns = [
         name='api_best_player_against_team'
     ),
     path('api/add-goal/', views.api_add_goal),
+    path('api/login/', views.api_login),
 ]
