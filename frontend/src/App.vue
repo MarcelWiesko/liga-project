@@ -65,7 +65,7 @@ async function loadData() {
     players.value = await getJson(
     `${API}/players/?league_id=${selectedLeague.value}`
     )
-    matches.value = await getJson(`${API}/matches/`)
+    matches.value = await getJson(`${API}/matches/?league_id=${selectedLeague.value}`)
     schedulers.value = await getJson(
     `${API}/schedulers/?league=${selectedLeague.value}`
     )
@@ -454,8 +454,11 @@ onMounted(() => {
   background: #020617;
   color: white;
   padding: 28px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
-
 .brand {
   display: flex;
   gap: 14px;
@@ -756,9 +759,11 @@ th {
     flex-direction: column;
   }
 
-  .sidebar {
-    width: 100%;
-  }
+.sidebar {
+  width: 100%;
+  height: auto;
+  position: static;
+}
 
   .stats,
   .grid {

@@ -69,9 +69,18 @@ class PlayerViewSet(viewsets.ModelViewSet):
         return queryset
 
 class MatchViewSet(viewsets.ModelViewSet):
-    queryset = Match.objects.all()
+
     serializer_class = MatchSerializer
 
+    def get_queryset(self):
+        queryset = Match.objects.all()
+
+        league_id = self.request.query_params.get('league_id')
+
+        if league_id:
+            queryset = queryset.filter(schedule__league_id=league_id)
+
+        return queryset
 
 class GoalViewSet(viewsets.ModelViewSet):
     queryset = Goal.objects.all()
