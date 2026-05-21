@@ -1,8 +1,22 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+class League(models.Model):
+    name = models.CharField(max_length=100)
+    season = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"{self.name} {self.season}"
+
 
 class Team(models.Model):
+    league = models.ForeignKey(
+        'League',
+        on_delete=models.CASCADE,
+        related_name='teams',
+        null=True,
+        blank=True
+    )
     name = models.CharField(max_length=100)
     city = models.CharField(max_length=100, blank=True)
     coach = models.CharField(max_length=100, blank=True)
@@ -81,13 +95,6 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
-
-class League(models.Model):
-    name = models.CharField(max_length=100)
-    season = models.CharField(max_length=50)
-
-    def __str__(self):
-        return f"{self.name} {self.season}"
 
 
 class Scheduler(models.Model):

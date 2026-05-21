@@ -59,10 +59,16 @@ async function loadData() {
       selectedLeague.value = leagues.value[0].id
     }
 
-    teams.value = await getJson(`${API}/teams/`)
-    players.value = await getJson(`${API}/players/`)
+    teams.value = await getJson(
+    `${API}/teams/?league_id=${selectedLeague.value}`
+    )
+    players.value = await getJson(
+    `${API}/players/?league_id=${selectedLeague.value}`
+    )
     matches.value = await getJson(`${API}/matches/`)
-    schedulers.value = await getJson(`${API}/schedulers/`)
+    schedulers.value = await getJson(
+    `${API}/schedulers/?league=${selectedLeague.value}`
+    )
 
     table.value = await getJson(`${API}/table/?league_id=${selectedLeague.value}`)
     bestTeam.value = await getJson(`${API}/best-team/?league_id=${selectedLeague.value}`)

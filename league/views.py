@@ -34,14 +34,39 @@ from .serializers import (
 # =========================
 
 class TeamViewSet(viewsets.ModelViewSet):
-    queryset = Team.objects.all()
+
     serializer_class = TeamSerializer
+
+    def get_queryset(self):
+
+        queryset = Team.objects.all()
+
+        league_id = self.request.query_params.get('league_id')
+
+        if league_id:
+            queryset = queryset.filter(
+                league_id=league_id
+            )
+
+        return queryset
 
 
 class PlayerViewSet(viewsets.ModelViewSet):
-    queryset = Player.objects.all()
+
     serializer_class = PlayerSerializer
 
+    def get_queryset(self):
+
+        queryset = Player.objects.all()
+
+        league_id = self.request.query_params.get('league_id')
+
+        if league_id:
+            queryset = queryset.filter(
+                team__league_id=league_id
+            )
+
+        return queryset
 
 class MatchViewSet(viewsets.ModelViewSet):
     queryset = Match.objects.all()
