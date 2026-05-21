@@ -81,3 +81,20 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+
+class League(models.Model):
+    name = models.CharField(max_length=100)
+    season = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"{self.name} {self.season}"
+
+
+class Scheduler(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="schedules")
+    match = models.OneToOneField(Match, on_delete=models.CASCADE, related_name="schedule")
+    round_number = models.IntegerField()
+    planned_date = models.DateTimeField()
+
+    def __str__(self):
+        return f"Kolejka {self.round_number} - {self.match}"
