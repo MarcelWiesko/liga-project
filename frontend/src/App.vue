@@ -349,24 +349,35 @@ onMounted(() => {
         <div v-if="successMessage" class="success">{{ successMessage }}</div>
 
         <section id="league" class="league-select-card">
-          <div>
-            <span class="section-label">Aktywna liga</span>
-            <h2>{{ activeLeague ? `${activeLeague.name} — ${activeLeague.season}` : 'Wybierz ligę' }}</h2>
-            <p>
-              Po zmianie ligi tabela, drużyny, zawodnicy, mecze i terminarz zostaną odświeżone.
-            </p>
-          </div>
+  <div class="league-info">
+    <div class="league-logo">
+      <img
+        v-if="activeLeague?.logo_url"
+        :src="activeLeague.logo_url"
+        :alt="activeLeague.name"
+      >
+      <span v-else>🏆</span>
+    </div>
 
-          <div class="league-control">
-            <select v-model="selectedLeague" @change="changeLeague">
-              <option value="">Wybierz ligę</option>
+    <div>
+      <span class="section-label">Aktywna liga</span>
+      <h2>{{ activeLeague ? `${activeLeague.name} — ${activeLeague.season}` : 'Wybierz ligę' }}</h2>
+      <p>
+        Po zmianie ligi tabela, drużyny, zawodnicy, mecze i terminarz zostaną odświeżone.
+      </p>
+    </div>
+  </div>
 
-              <option v-for="league in leagues" :key="league.id" :value="league.id">
-                {{ league.name }} — {{ league.season }}
-              </option>
-            </select>
-          </div>
-        </section>
+  <div class="league-control">
+    <select v-model="selectedLeague" @change="changeLeague">
+      <option value="">Wybierz ligę</option>
+
+      <option v-for="league in leagues" :key="league.id" :value="league.id">
+        {{ league.name }} — {{ league.season }}
+      </option>
+    </select>
+  </div>
+</section>
 
         <section class="stats">
           <div class="stat-card green">
