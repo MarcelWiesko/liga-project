@@ -75,7 +75,9 @@ async function loadData() {
 
     table.value = await getJson(`${API}/table/?league_id=${selectedLeague.value}`)
     bestTeam.value = await getJson(`${API}/best-team/?league_id=${selectedLeague.value}`)
-    bestPlayer.value = await getJson(`${API}/best-player/`)
+    bestPlayer.value = await getJson(
+  `${API}/best-player/?league_id=${selectedLeague.value}`
+)
   } catch (e) {
     error.value = 'Nie udało się pobrać danych z backendu.'
   } finally {

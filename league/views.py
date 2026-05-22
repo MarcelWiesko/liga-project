@@ -294,7 +294,14 @@ def api_best_team(request):
 @api_view(['GET'])
 def api_best_player(request):
 
+    league_id = request.GET.get("league_id")
+
     players = Player.objects.all()
+
+    if league_id:
+        players = players.filter(
+            team__league_id=league_id
+        )
 
     ranking = []
 
@@ -302,7 +309,15 @@ def api_best_player(request):
 
         goals_count = Goal.objects.filter(
             player=player
-        ).count()
+        )
+
+        if league_id:
+            goals_count = goals_count.filter(
+                match__home_team__league_id=league_id,
+                match__away_team__league_id=league_id
+            )
+
+        goals_count = goals_count.count()
 
         ranking.append({
             "player_id": player.id,
@@ -323,7 +338,6 @@ def api_best_player(request):
         })
 
     return Response(ranking[0])
-
 
 # =========================
 # BEST PLAYER AGAINST TEAM
