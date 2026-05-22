@@ -140,12 +140,23 @@ def api_login(request):
 def api_register(request):
     username = request.data.get("username", "").strip()
     password = request.data.get("password", "")
-    role = request.data.get("role", "user")
 
     if not username or not password:
         return Response({
             "success": False,
             "message": "Podaj login i hasło"
+        }, status=400)
+
+    if len(password) < 8:
+        return Response({
+            "success": False,
+            "message": "Hasło musi mieć minimum 8 znaków"
+        }, status=400)
+
+    if not any(char.isdigit() for char in password):
+        return Response({
+            "success": False,
+            "message": "Hasło musi zawierać przynajmniej jedną cyfrę"
         }, status=400)
 
     if User.objects.filter(username=username).exists():
@@ -154,9 +165,6 @@ def api_register(request):
             "message": "Użytkownik już istnieje"
         }, status=400)
 
-    if role not in ["user", "referee", "manager"]:
-        role = "user"
-
     user = User.objects.create_user(
         username=username,
         password=password
@@ -164,7 +172,7 @@ def api_register(request):
 
     UserProfile.objects.create(
         user=user,
-        role=role
+        role="user"
     )
 
     return Response({
@@ -346,6 +354,16 @@ def api_best_player(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_best_player_against_team(request, team_id):
+    if not hasattr(request.user, "userprofile"):
+        return Response({
+            "message": "Brak profilu użytkownika"
+        }, status=403)
+
+    if request.user.userprofile.role != "manager":
+        return Response({
+            "message": "Brak uprawnień"
+        }, status=403)
+
 
     if request.user.userprofile.role != "manager":
         return Response({

@@ -313,11 +313,7 @@ onMounted(() => {
             <input v-model="registerUsername" type="text" placeholder="Nowy login">
             <input v-model="registerPassword" type="password" placeholder="Nowe hasło">
 
-            <select v-model="registerRole">
-              <option value="user">Użytkownik</option>
-              <option value="referee">Sędzia</option>
-              <option value="manager">Menadżer</option>
-            </select>
+
 
             <button @click="register">Zarejestruj</button>
           </div>
