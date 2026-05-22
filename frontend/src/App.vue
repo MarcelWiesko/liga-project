@@ -25,6 +25,7 @@ const matches = ref([])
 const table = ref([])
 const bestTeam = ref(null)
 const bestPlayer = ref(null)
+
 const selectedTeam = ref('')
 const bestAgainstTeam = ref(null)
 
@@ -65,16 +66,12 @@ async function loadData() {
       selectedLeague.value = leagues.value[0].id
     }
 
-    teams.value = await getJson(
-    `${API}/teams/?league_id=${selectedLeague.value}`
-    )
-    players.value = await getJson(
-    `${API}/players/?league_id=${selectedLeague.value}`
-    )
-    matches.value = await getJson(`${API}/matches/?league_id=${selectedLeague.value}`)
-    schedulers.value = await getJson(
-    `${API}/schedulers/?league=${selectedLeague.value}`
-    )
+    const leagueParam = selectedLeague.value ? `?league_id=${selectedLeague.value}` : ''
+
+    teams.value = await getJson(`${API}/teams/${leagueParam}`)
+    players.value = await getJson(`${API}/players/${leagueParam}`)
+    matches.value = await getJson(`${API}/matches/${leagueParam}`)
+    schedulers.value = await getJson(`${API}/schedulers/`)
 
     table.value = await getJson(`${API}/table/?league_id=${selectedLeague.value}`)
     bestTeam.value = await getJson(`${API}/best-team/?league_id=${selectedLeague.value}`)
@@ -86,38 +83,9 @@ async function loadData() {
   }
 }
 
-async function register() {
-  registerMessage.value = null
-  loginError.value = null
-
-  const response = await fetch(`${API}/register/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      username: registerUsername.value,
-      password: registerPassword.value,
-      role: registerRole.value
-    })
-  })
-
-  const data = await response.json()
-
-  if (!response.ok || !data.success) {
-    loginError.value = data.message || 'Nie udało się utworzyć konta'
-    return
-  }
-
-  registerMessage.value = 'Konto utworzone. Możesz się zalogować.'
-  registerUsername.value = ''
-  registerPassword.value = ''
-  registerRole.value = 'user'
-  showRegister.value = false
-}
-
 async function login() {
   loginError.value = null
+  registerMessage.value = null
 
   const response = await fetch(`${API}/login/`, {
     method: 'POST',
@@ -147,6 +115,36 @@ async function login() {
   await loadData()
 }
 
+async function register() {
+  registerMessage.value = null
+  loginError.value = null
+
+  const response = await fetch(`${API}/register/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: registerUsername.value,
+      password: registerPassword.value,
+      role: registerRole.value
+    })
+  })
+
+  const data = await response.json()
+
+  if (!response.ok || !data.success) {
+    loginError.value = data.message || 'Nie udało się utworzyć konta'
+    return
+  }
+
+  registerMessage.value = 'Konto zostało utworzone. Możesz się zalogować.'
+  registerUsername.value = ''
+  registerPassword.value = ''
+  registerRole.value = 'user'
+  showRegister.value = false
+}
+
 function logout() {
   localStorage.removeItem('token')
   localStorage.removeItem('role')
@@ -154,16 +152,24 @@ function logout() {
   token.value = null
   role.value = null
   isLoggedIn.value = false
+  username.value = ''
+  password.value = ''
 }
 
 async function changeLeague() {
   bestAgainstTeam.value = null
+  successMessage.value = null
   await loadData()
 }
 
 async function addGoal() {
   successMessage.value = null
   error.value = null
+
+  if (!selectedMatch.value || !selectedPlayer.value || !minute.value) {
+    error.value = 'Uzupełnij mecz, zawodnika i minutę gola.'
+    return
+  }
 
   const response = await fetch(`${API}/add-goal/`, {
     method: 'POST',
@@ -218,6 +224,10 @@ async function getBestAgainstTeam() {
   bestAgainstTeam.value = data
 }
 
+const activeLeague = computed(() =>
+  leagues.value.find(league => String(league.id) === String(selectedLeague.value))
+)
+
 const filteredPlayers = computed(() =>
   players.value.filter(player =>
     `${player.first_name} ${player.last_name} ${player.team_name}`
@@ -230,7 +240,9 @@ const filteredSchedulers = computed(() =>
   schedulers.value.filter(item => String(item.league) === String(selectedLeague.value))
 )
 
-const finishedMatches = computed(() => matches.value.filter(match => match.finished))
+const finishedMatches = computed(() =>
+  matches.value.filter(match => match.finished)
+)
 
 onMounted(() => {
   if (isLoggedIn.value) {
@@ -244,67 +256,77 @@ onMounted(() => {
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-icon">⚽</div>
+
         <div>
           <h1>System Liga</h1>
-          <p>Panel użytkownika</p>
+          <p>SaaS Azure</p>
         </div>
       </div>
 
       <nav v-if="isLoggedIn">
         <a href="#dashboard">Dashboard</a>
+        <a href="#league">Liga</a>
         <a href="#table">Tabela</a>
         <a href="#scheduler">Terminarz</a>
         <a href="#teams">Drużyny</a>
         <a href="#players">Zawodnicy</a>
         <a href="#matches">Mecze</a>
-        <a v-if="role === 'referee'" href="#referee">Dodaj gola</a>
-        <a v-if="role === 'manager'" href="#manager">Analiza</a>
+        <a v-if="role === 'referee'" href="#referee">Panel sędziego</a>
+        <a v-if="role === 'manager'" href="#manager">Panel menadżera</a>
       </nav>
 
-      <button v-if="isLoggedIn" class="logout" @click="logout">
-        Wyloguj
-      </button>
+      <div v-if="isLoggedIn" class="user-box">
+        <span>Zalogowano jako</span>
+        <strong>{{ role }}</strong>
+
+        <button class="logout" @click="logout">
+          Wyloguj
+        </button>
+      </div>
     </aside>
 
     <main class="main">
-      <section v-if="!isLoggedIn" class="login-card">
-        <h2>Logowanie</h2>
-        <p>Zaloguj się jako user, sędzia albo menadżer.</p>
+      <section v-if="!isLoggedIn" class="auth-wrapper">
+        <div class="login-card">
+          <div class="login-header">
+            <div class="login-logo">⚽</div>
+            <h2>Logowanie</h2>
+            <p>Zaloguj się lub utwórz nowe konto.</p>
+          </div>
 
-        <input v-model="username" type="text" placeholder="Login">
-        <input v-model="password" type="password" placeholder="Hasło">
+          <input v-model="username" type="text" placeholder="Login">
+          <input v-model="password" type="password" placeholder="Hasło">
 
-        <button @click="login">Zaloguj</button>
+          <div class="button-row">
+            <button @click="login">Zaloguj</button>
 
-        <button class="secondary" @click="showRegister = !showRegister">
-          {{ showRegister ? 'Ukryj rejestrację' : 'Utwórz konto' }}
-        </button>
+            <button class="secondary" @click="showRegister = !showRegister">
+              {{ showRegister ? 'Ukryj' : 'Utwórz konto' }}
+            </button>
+          </div>
 
-        <div v-if="showRegister" class="register-box">
-          <h3>Rejestracja</h3>
+          <div v-if="showRegister" class="register-box">
+            <h3>Rejestracja</h3>
 
-          <input v-model="registerUsername" type="text" placeholder="Nowy login">
+            <input v-model="registerUsername" type="text" placeholder="Nowy login">
+            <input v-model="registerPassword" type="password" placeholder="Nowe hasło">
 
-          <input v-model="registerPassword" type="password" placeholder="Nowe hasło">
+            <select v-model="registerRole">
+              <option value="user">Użytkownik</option>
+              <option value="referee">Sędzia</option>
+              <option value="manager">Menadżer</option>
+            </select>
 
-          <select v-model="registerRole">
-            <option value="user">Użytkownik</option>
-            <option value="referee">Sędzia</option>
-            <option value="manager">Menadżer</option>
-          </select>
+            <button @click="register">Zarejestruj</button>
+          </div>
 
-          <button @click="register">Zarejestruj</button>
-        </div>
+          <div v-if="registerMessage" class="success">
+            {{ registerMessage }}
+          </div>
 
-        <div v-if="registerMessage" class="success">
-          {{ registerMessage }}
-        </div>
-
-        <div v-if="loginError" class="alert">
-          {{ loginError }}
-        </div>
-        <div v-if="loginError" class="alert">
-          {{ loginError }}
+          <div v-if="loginError" class="alert">
+            {{ loginError }}
+          </div>
         </div>
       </section>
 
@@ -314,7 +336,7 @@ onMounted(() => {
             <span class="badge">Rola: {{ role }}</span>
             <h2>System zarządzania ligą piłkarską</h2>
             <p>
-              Wybieraj ligę, sprawdzaj tabelę, terminarz, mecze oraz statystyki zawodników.
+              Wybieraj ligę, sprawdzaj tabelę, terminarz, wyniki oraz statystyki zawodników.
             </p>
           </div>
 
@@ -326,22 +348,25 @@ onMounted(() => {
         <div v-if="error" class="alert">{{ error }}</div>
         <div v-if="successMessage" class="success">{{ successMessage }}</div>
 
-      <section class="league-select-card">
-        <div>
-          <span class="section-label">Aktywna liga</span>
-          <h2>Wybierz rozgrywki</h2>
-          <p>Po zmianie ligi tabela, terminarz i drużyny zostaną automatycznie odświeżone.</p>
-        </div>
+        <section id="league" class="league-select-card">
+          <div>
+            <span class="section-label">Aktywna liga</span>
+            <h2>{{ activeLeague ? `${activeLeague.name} — ${activeLeague.season}` : 'Wybierz ligę' }}</h2>
+            <p>
+              Po zmianie ligi tabela, drużyny, zawodnicy, mecze i terminarz zostaną odświeżone.
+            </p>
+          </div>
 
-        <div class="league-control">
-          <select v-model="selectedLeague" @change="changeLeague">
-            <option value="">Wybierz ligę</option>
-            <option v-for="league in leagues" :key="league.id" :value="league.id">
-              {{ league.name }} — {{ league.season }}
-            </option>
-          </select>
-        </div>
-      </section>
+          <div class="league-control">
+            <select v-model="selectedLeague" @change="changeLeague">
+              <option value="">Wybierz ligę</option>
+
+              <option v-for="league in leagues" :key="league.id" :value="league.id">
+                {{ league.name }} — {{ league.season }}
+              </option>
+            </select>
+          </div>
+        </section>
 
         <section class="stats">
           <div class="stat-card green">
@@ -357,7 +382,7 @@ onMounted(() => {
           </div>
 
           <div class="stat-card orange">
-            <span>Drużyny</span>
+            <span>Drużyny w lidze</span>
             <h3>{{ teams.length }}</h3>
             <p>w systemie</p>
           </div>
@@ -370,7 +395,12 @@ onMounted(() => {
         </section>
 
         <section id="table" class="card">
-          <h2>Tabela ligowa</h2>
+          <div class="card-header">
+            <div>
+              <h2>Tabela ligowa</h2>
+              <p>Ranking drużyn w aktualnie wybranej lidze.</p>
+            </div>
+          </div>
 
           <div class="table-wrapper">
             <table>
@@ -389,9 +419,9 @@ onMounted(() => {
 
               <tbody>
                 <tr v-for="(row, index) in table" :key="row.team_id">
-                  <td>{{ index + 1 }}</td>
+                  <td><span class="place">{{ index + 1 }}</span></td>
                   <td><strong>{{ row.team }}</strong></td>
-                  <td>{{ row.points }}</td>
+                  <td class="points">{{ row.points }}</td>
                   <td>{{ row.wins }}</td>
                   <td>{{ row.draws }}</td>
                   <td>{{ row.losses }}</td>
@@ -404,7 +434,12 @@ onMounted(() => {
         </section>
 
         <section id="scheduler" class="card">
-          <h2>Terminarz ligi</h2>
+          <div class="card-header">
+            <div>
+              <h2>Terminarz ligi</h2>
+              <p>Mecze przypisane do wybranej ligi.</p>
+            </div>
+          </div>
 
           <div v-if="filteredSchedulers.length === 0" class="empty">
             Brak terminarza dla wybranej ligi.
@@ -426,18 +461,42 @@ onMounted(() => {
 
         <section class="grid">
           <div id="teams" class="card">
-            <h2>Drużyny</h2>
+            <div class="card-header">
+              <div>
+                <h2>Drużyny</h2>
+                <p>Drużyny z aktualnej ligi.</p>
+              </div>
+            </div>
 
-            <div v-for="team in teams" :key="team.id" class="item">
-              <strong>{{ team.name }}</strong>
-              <span>{{ team.city || 'Brak miasta' }}</span>
+            <div v-if="teams.length === 0" class="empty">
+              Brak drużyn w tej lidze.
+            </div>
+
+            <div v-for="team in teams" :key="team.id" class="item team-item">
+              <div class="team-avatar">
+                {{ team.name?.charAt(0) }}
+              </div>
+
+              <div>
+                <strong>{{ team.name }}</strong>
+                <span>{{ team.city || 'Brak miasta' }}</span>
+              </div>
             </div>
           </div>
 
           <div id="players" class="card">
-            <h2>Zawodnicy</h2>
+            <div class="card-header">
+              <div>
+                <h2>Zawodnicy</h2>
+                <p>Zawodnicy przypisani do drużyn z wybranej ligi.</p>
+              </div>
+            </div>
 
             <input v-model="search" class="search" type="text" placeholder="Szukaj zawodnika...">
+
+            <div v-if="filteredPlayers.length === 0" class="empty">
+              Brak zawodników do wyświetlenia.
+            </div>
 
             <div v-for="player in filteredPlayers" :key="player.id" class="item">
               <strong>{{ player.first_name }} {{ player.last_name }}</strong>
@@ -447,7 +506,16 @@ onMounted(() => {
         </section>
 
         <section id="matches" class="card">
-          <h2>Mecze</h2>
+          <div class="card-header">
+            <div>
+              <h2>Mecze</h2>
+              <p>Mecze tylko z wybranej ligi.</p>
+            </div>
+          </div>
+
+          <div v-if="matches.length === 0" class="empty">
+            Brak meczów w tej lidze.
+          </div>
 
           <div v-for="match in matches" :key="match.id" class="match-card">
             <strong>{{ match.home_team_name }}</strong>
@@ -456,8 +524,13 @@ onMounted(() => {
           </div>
         </section>
 
-        <section v-if="role === 'referee'" id="referee" class="card">
-          <h2>Panel sędziego — dodaj gola</h2>
+        <section v-if="role === 'referee'" id="referee" class="card role-card">
+          <div class="card-header">
+            <div>
+              <h2>Panel sędziego</h2>
+              <p>Dodaj gola do wybranego meczu.</p>
+            </div>
+          </div>
 
           <select v-model="selectedMatch">
             <option value="">Wybierz mecz</option>
@@ -478,9 +551,13 @@ onMounted(() => {
           <button @click="addGoal">Dodaj gola</button>
         </section>
 
-        <section v-if="role === 'manager'" id="manager" class="card">
-          <h2>Panel menadżera</h2>
-          <p>Sprawdź najlepszego zawodnika przeciw wybranej drużynie.</p>
+        <section v-if="role === 'manager'" id="manager" class="card role-card">
+          <div class="card-header">
+            <div>
+              <h2>Panel menadżera</h2>
+              <p>Sprawdź najlepszego zawodnika przeciwko wybranej drużynie.</p>
+            </div>
+          </div>
 
           <select v-model="selectedTeam">
             <option value="">Wybierz drużynę</option>
@@ -504,6 +581,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
+* {
+  box-sizing: border-box;
+}
+
 .app {
   min-height: 100vh;
   background: #eef2f7;
@@ -522,6 +603,7 @@ onMounted(() => {
   height: 100vh;
   overflow-y: auto;
 }
+
 .brand {
   display: flex;
   gap: 14px;
@@ -529,7 +611,8 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-.brand-icon {
+.brand-icon,
+.login-logo {
   width: 48px;
   height: 48px;
   background: linear-gradient(135deg, #22c55e, #14b8a6);
@@ -567,8 +650,27 @@ nav a:hover {
   color: white;
 }
 
+.user-box {
+  margin-top: 28px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #0f172a;
+}
+
+.user-box span {
+  color: #94a3b8;
+  display: block;
+  font-size: 13px;
+}
+
+.user-box strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 18px;
+}
+
 .logout {
-  margin-top: 30px;
+  margin-top: 16px;
   width: 100%;
   background: #ef4444;
 }
@@ -577,30 +679,34 @@ nav a:hover {
   flex: 1;
   padding: 34px;
 }
-.secondary {
-  background: #0f172a;
-  margin-top: 10px;
-}
 
-.register-box {
-  margin-top: 20px;
-  padding: 18px;
-  background: #f8fafc;
-  border-radius: 16px;
+.auth-wrapper {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
 }
 
 .login-card,
 .card,
-.stat-card {
+.stat-card,
+.league-select-card {
   background: white;
-  border-radius: 22px;
-  padding: 24px;
+  border-radius: 24px;
+  padding: 26px;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
 }
 
 .login-card {
-  max-width: 420px;
-  margin: 100px auto;
+  width: 100%;
+  max-width: 460px;
+}
+
+.login-header {
+  margin-bottom: 24px;
+}
+
+.login-header h2 {
+  margin-bottom: 8px;
 }
 
 .login-card input,
@@ -611,7 +717,35 @@ input {
   padding: 14px;
   margin: 10px 0;
   border: 1px solid #cbd5e1;
-  border-radius: 12px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  background: #16a34a;
+  color: white;
+  border: none;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.secondary {
+  background: #0f172a;
+}
+
+.register-box {
+  margin-top: 20px;
+  padding: 18px;
+  background: #f8fafc;
+  border-radius: 18px;
 }
 
 .hero {
@@ -623,6 +757,7 @@ input {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 26px;
+  gap: 24px;
 }
 
 .badge {
@@ -633,16 +768,12 @@ input {
 
 .hero h2 {
   font-size: 36px;
+  margin: 16px 0 10px;
 }
 
-button {
-  background: #16a34a;
-  color: white;
-  border: none;
-  padding: 13px 20px;
-  border-radius: 14px;
-  font-weight: 800;
-  cursor: pointer;
+.hero p {
+  color: #d1fae5;
+  margin: 0;
 }
 
 .alert {
@@ -661,11 +792,69 @@ button {
   margin: 15px 0;
 }
 
+.league-select-card {
+  background: linear-gradient(135deg, #ffffff, #ecfdf5);
+  border: 1px solid #bbf7d0;
+  margin-bottom: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.section-label {
+  display: inline-block;
+  background: #dcfce7;
+  color: #166534;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.league-select-card h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.league-select-card p {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.league-control {
+  min-width: 320px;
+}
+
+.league-control select {
+  border: 2px solid #22c55e;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
   margin-bottom: 26px;
+}
+
+.stat-card {
+  border-left: 6px solid #22c55e;
+}
+
+.stat-card.blue {
+  border-left-color: #3b82f6;
+}
+
+.stat-card.orange {
+  border-left-color: #f97316;
+}
+
+.stat-card.purple {
+  border-left-color: #8b5cf6;
 }
 
 .stat-card span {
@@ -677,10 +866,32 @@ button {
 
 .stat-card h3 {
   font-size: 26px;
+  margin: 12px 0 6px;
+}
+
+.stat-card p {
+  margin: 0;
+  color: #16a34a;
+  font-weight: 900;
 }
 
 .card {
   margin-bottom: 26px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.card-header h2 {
+  margin: 0;
+}
+
+.card-header p {
+  margin: 6px 0 0;
+  color: #64748b;
 }
 
 .table-wrapper {
@@ -701,6 +912,22 @@ td {
 
 th {
   background: #f8fafc;
+  color: #475569;
+}
+
+.place {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 10px;
+  font-weight: 900;
+}
+
+.points {
+  font-weight: 900;
 }
 
 .grid {
@@ -716,6 +943,27 @@ th {
   margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
+  gap: 14px;
+}
+
+.team-item {
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.team-avatar {
+  width: 42px;
+  height: 42px;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.item span {
+  color: #64748b;
 }
 
 .match-card,
@@ -761,66 +1009,30 @@ th {
   border-radius: 14px;
 }
 
-.league-select-card {
-  background: linear-gradient(135deg, #ffffff, #ecfdf5);
-  border: 1px solid #bbf7d0;
-  border-radius: 24px;
-  padding: 26px;
-  margin-bottom: 26px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+.role-card {
+  border: 2px solid #dcfce7;
 }
 
-.section-label {
-  display: inline-block;
-  background: #dcfce7;
-  color: #166534;
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
+@media (max-width: 1000px) {
+  .app {
+    flex-direction: column;
+  }
 
-.league-select-card h2 {
-  margin: 0;
-  font-size: 26px;
-}
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+  }
 
-.league-select-card p {
-  margin: 8px 0 0;
-  color: #64748b;
-}
+  .stats,
+  .grid {
+    grid-template-columns: 1fr;
+  }
 
-.league-control {
-  min-width: 320px;
-}
-
-.league-control select {
-  width: 100%;
-  padding: 15px 18px;
-  border: 2px solid #22c55e;
-  border-radius: 16px;
-  background: white;
-  color: #0f172a;
-  font-weight: 800;
-  font-size: 15px;
-  cursor: pointer;
-}
-
-.league-control select:focus {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
-}
-
-@media (max-width: 900px) {
+  .hero,
   .league-select-card {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
   }
 
   .league-control {
@@ -828,25 +1040,19 @@ th {
   }
 }
 
-@media (max-width: 900px) {
-  .app {
-    flex-direction: column;
+@media (max-width: 600px) {
+  .main {
+    padding: 18px;
   }
 
-.sidebar {
-  width: 100%;
-  height: auto;
-  position: static;
-}
+  .hero h2 {
+    font-size: 28px;
+  }
 
-  .stats,
-  .grid {
+  .match-card,
+  .schedule-item {
     grid-template-columns: 1fr;
-  }
-
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
+    text-align: center;
   }
 }
 </style>
