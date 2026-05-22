@@ -813,6 +813,34 @@ button {
   gap: 24px;
 }
 
+.league-info {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.league-logo {
+  width: 76px;
+  height: 76px;
+  background: white;
+  border: 1px solid #bbf7d0;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+.league-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.league-logo span {
+  font-size: 32px;
+}
+
 .section-label {
   display: inline-block;
   background: #dcfce7;
@@ -1050,6 +1078,10 @@ th {
     min-width: 100%;
   }
 }
+  .league-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
 @media (max-width: 600px) {
   .main {
