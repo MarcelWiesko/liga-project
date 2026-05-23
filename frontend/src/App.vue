@@ -791,6 +791,8 @@ button {
 
 .show-less {
   background: #64748b;
+  margin-top: 12px;
+  width: 100%;
 }
 
 .secondary {

@@ -105,7 +105,11 @@ WSGI_APPLICATION = 'liga_project.wsgi.application'
 
 tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
 
+tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+tmpAuthPostgres = urlparse(os.getenv("AUTH_DATABASE_URL"))
+
 DATABASES = {
+    # baza biznesowa: ligi, drużyny, zawodnicy, mecze, gole, terminarz
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': tmpPostgres.path.replace('/', ''),
@@ -114,8 +118,23 @@ DATABASES = {
         'HOST': tmpPostgres.hostname,
         'PORT': 5432,
         'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
+    },
+
+    # baza autoryzacji: użytkownicy, role, tokeny, sesje
+    'auth_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': tmpAuthPostgres.path.replace('/', ''),
+        'USER': tmpAuthPostgres.username,
+        'PASSWORD': tmpAuthPostgres.password,
+        'HOST': tmpAuthPostgres.hostname,
+        'PORT': 5432,
+        'OPTIONS': dict(parse_qsl(tmpAuthPostgres.query)),
     }
 }
+
+DATABASE_ROUTERS = [
+    'liga_project.db_router.DatabaseRouter',
+]
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
