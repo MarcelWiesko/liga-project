@@ -527,12 +527,21 @@ onMounted(() => {
               Wyświetlono {{ visiblePlayers.length }} z {{ filteredPlayers.length }} zawodników.
             </div>
 
+            <div class="players-buttons">
             <button
               v-if="filteredPlayers.length > playersLimit"
               class="secondary show-more"
               @click="playersLimit += 5"
             >
               Pokaż więcej
+            </button>
+
+            <button
+              v-if="playersLimit > 5"
+              class="show-less"
+              @click="playersLimit = 5"
+            >
+              Pokaż mniej
             </button>
           </div>
         </section>
@@ -767,6 +776,20 @@ button {
   border-radius: 14px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.players-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.players-buttons button {
+  flex: 1;
+}
+
+.show-less {
+  background: #64748b;
 }
 
 .secondary {
