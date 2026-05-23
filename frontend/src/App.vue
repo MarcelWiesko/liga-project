@@ -21,6 +21,7 @@ const schedulers = ref([])
 
 const teams = ref([])
 const players = ref([])
+const playerLimit = ref(5)
 const matches = ref([])
 const table = ref([])
 const bestTeam = ref(null)
@@ -236,6 +237,10 @@ const filteredPlayers = computed(() =>
       .toLowerCase()
       .includes(search.value.toLowerCase())
   )
+)
+
+const visiblePlayers = computed(() =>
+  filteredPlayers.value.slice(0, playersLimit.value)
 )
 
 const filteredSchedulers = computed(() =>
@@ -507,11 +512,21 @@ onMounted(() => {
               Brak zawodników do wyświetlenia.
             </div>
 
-            <div v-for="player in filteredPlayers" :key="player.id" class="item">
+            <div v-for="player in visiblePlayers" :key="player.id" class="item">
               <strong>{{ player.first_name }} {{ player.last_name }}</strong>
               <span>{{ player.team_name }}</span>
             </div>
-          </div>
+
+            <div v-if="filteredPlayers.length > playersLimit" class="list-info">
+              Wyświetlono {{ playersLimit }} z {{ filteredPlayers.length }} zawodników.
+            </div>
+            <button
+              v-if="filteredPlayers.length > playersLimit"
+              class="secondary"
+              @click="playersLimit += 5"
+            >
+              Pokaż więcej
+            </button>
         </section>
 
         <section id="matches" class="card">
@@ -1048,6 +1063,16 @@ th {
 
 .role-card {
   border: 2px solid #dcfce7;
+}
+
+.list-info {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 12px;
+  font-weight: 700;
+  text-align: center;
 }
 
 @media (max-width: 1000px) {
