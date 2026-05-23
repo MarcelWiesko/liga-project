@@ -11,7 +11,6 @@ const isLoggedIn = ref(!!token.value)
 
 const registerUsername = ref('')
 const registerPassword = ref('')
-const registerRole = ref('user')
 const registerMessage = ref(null)
 const showRegister = ref(false)
 
@@ -21,7 +20,6 @@ const schedulers = ref([])
 
 const teams = ref([])
 const players = ref([])
-const playerLimit = ref(5)
 const matches = ref([])
 const table = ref([])
 const bestTeam = ref(null)
@@ -40,6 +38,8 @@ const loginError = ref(null)
 const successMessage = ref(null)
 const search = ref('')
 
+const playersLimit = ref(5)
+
 async function getJson(url, auth = false) {
   const headers = {}
 
@@ -50,7 +50,9 @@ async function getJson(url, auth = false) {
   const res = await fetch(url, { headers })
 
   if (!res.ok) {
-    throw new Error('API error')
+    const text = await res.text()
+    console.error('Błąd API:', url, res.status, text)
+    throw new Error(`Błąd API ${res.status}: ${url}`)
   }
 
   return res.json()
@@ -76,11 +78,10 @@ async function loadData() {
 
     table.value = await getJson(`${API}/table/?league_id=${selectedLeague.value}`)
     bestTeam.value = await getJson(`${API}/best-team/?league_id=${selectedLeague.value}`)
-    bestPlayer.value = await getJson(
-  `${API}/best-player/?league_id=${selectedLeague.value}`
-)
+    bestPlayer.value = await getJson(`${API}/best-player/?league_id=${selectedLeague.value}`)
   } catch (e) {
-    error.value = 'Nie udało się pobrać danych z backendu.'
+    console.error(e)
+    error.value = e.message || 'Nie udało się pobrać danych z backendu.'
   } finally {
     loading.value = false
   }
@@ -129,8 +130,7 @@ async function register() {
     },
     body: JSON.stringify({
       username: registerUsername.value,
-      password: registerPassword.value,
-      role: registerRole.value
+      password: registerPassword.value
     })
   })
 
@@ -144,7 +144,6 @@ async function register() {
   registerMessage.value = 'Konto zostało utworzone. Możesz się zalogować.'
   registerUsername.value = ''
   registerPassword.value = ''
-  registerRole.value = 'user'
   showRegister.value = false
 }
 
@@ -162,6 +161,8 @@ function logout() {
 async function changeLeague() {
   bestAgainstTeam.value = null
   successMessage.value = null
+  search.value = ''
+  playersLimit.value = 5
   await loadData()
 }
 
@@ -318,8 +319,6 @@ onMounted(() => {
             <input v-model="registerUsername" type="text" placeholder="Nowy login">
             <input v-model="registerPassword" type="password" placeholder="Nowe hasło">
 
-
-
             <button @click="register">Zarejestruj</button>
           </div>
 
@@ -352,35 +351,37 @@ onMounted(() => {
         <div v-if="successMessage" class="success">{{ successMessage }}</div>
 
         <section id="league" class="league-select-card">
-  <div class="league-info">
-    <div class="league-logo">
-      <img
-        v-if="activeLeague?.logo_url"
-        :src="activeLeague.logo_url"
-        :alt="activeLeague.name"
-      >
-      <span v-else>🏆</span>
-    </div>
+          <div class="league-info">
+            <div class="league-logo">
+              <img
+                v-if="activeLeague?.logo_url"
+                :src="activeLeague.logo_url"
+                :alt="activeLeague.name"
+              >
+              <span v-else>🏆</span>
+            </div>
 
-    <div>
-      <span class="section-label">Aktywna liga</span>
-      <h2>{{ activeLeague ? `${activeLeague.name} — ${activeLeague.season}` : 'Wybierz ligę' }}</h2>
-      <p>
-        Po zmianie ligi tabela, drużyny, zawodnicy, mecze i terminarz zostaną odświeżone.
-      </p>
-    </div>
-  </div>
+            <div>
+              <span class="section-label">Aktywna liga</span>
+              <h2>
+                {{ activeLeague ? `${activeLeague.name} — ${activeLeague.season}` : 'Wybierz ligę' }}
+              </h2>
+              <p>
+                Po zmianie ligi tabela, drużyny, zawodnicy, mecze i terminarz zostaną odświeżone.
+              </p>
+            </div>
+          </div>
 
-  <div class="league-control">
-    <select v-model="selectedLeague" @change="changeLeague">
-      <option value="">Wybierz ligę</option>
+          <div class="league-control">
+            <select v-model="selectedLeague" @change="changeLeague">
+              <option value="">Wybierz ligę</option>
 
-      <option v-for="league in leagues" :key="league.id" :value="league.id">
-        {{ league.name }} — {{ league.season }}
-      </option>
-    </select>
-  </div>
-</section>
+              <option v-for="league in leagues" :key="league.id" :value="league.id">
+                {{ league.name }} — {{ league.season }}
+              </option>
+            </select>
+          </div>
+        </section>
 
         <section class="stats">
           <div class="stat-card green">
@@ -488,7 +489,12 @@ onMounted(() => {
 
             <div v-for="team in teams" :key="team.id" class="item team-item">
               <div class="team-avatar">
-                {{ team.name?.charAt(0) }}
+                <img
+                  v-if="team.logo_url"
+                  :src="team.logo_url"
+                  :alt="team.name"
+                >
+                <span v-else>{{ team.name?.charAt(0) }}</span>
               </div>
 
               <div>
@@ -518,15 +524,17 @@ onMounted(() => {
             </div>
 
             <div v-if="filteredPlayers.length > playersLimit" class="list-info">
-              Wyświetlono {{ playersLimit }} z {{ filteredPlayers.length }} zawodników.
+              Wyświetlono {{ visiblePlayers.length }} z {{ filteredPlayers.length }} zawodników.
             </div>
+
             <button
               v-if="filteredPlayers.length > playersLimit"
-              class="secondary"
+              class="secondary show-more"
               @click="playersLimit += 5"
             >
               Pokaż więcej
             </button>
+          </div>
         </section>
 
         <section id="matches" class="card">
@@ -1012,6 +1020,14 @@ th {
   display: grid;
   place-items: center;
   font-weight: 900;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.team-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .item span {
@@ -1075,6 +1091,11 @@ th {
   text-align: center;
 }
 
+.show-more {
+  margin-top: 12px;
+  width: 100%;
+}
+
 @media (max-width: 1000px) {
   .app {
     flex-direction: column;
@@ -1097,14 +1118,15 @@ th {
     align-items: flex-start;
   }
 
-  .league-control {
-    min-width: 100%;
-  }
-}
   .league-info {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .league-control {
+    min-width: 100%;
+  }
+}
 
 @media (max-width: 600px) {
   .main {
