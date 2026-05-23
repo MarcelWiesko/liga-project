@@ -103,35 +103,30 @@ WSGI_APPLICATION = 'liga_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+database_url = os.getenv("DATABASE_URL")
+auth_database_url = os.getenv("AUTH_DATABASE_URL")
 
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
-tmpAuthPostgres = urlparse(os.getenv("AUTH_DATABASE_URL"))
+if not database_url:
+    raise Exception("Brakuje DATABASE_URL")
+
+if not auth_database_url:
+    raise Exception("Brakuje AUTH_DATABASE_URL")
 
 DATABASES = {
     # baza biznesowa: ligi, drużyny, zawodnicy, mecze, gole, terminarz
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': tmpPostgres.path.replace('/', ''),
-        'USER': tmpPostgres.username,
-        'PASSWORD': tmpPostgres.password,
-        'HOST': tmpPostgres.hostname,
-        'PORT': 5432,
-        'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
-    },
+    'default': dj_database_url.config(
+        default=database_url,
+        conn_max_age=600,
+        ssl_require=True
+    ),
 
     # baza autoryzacji: użytkownicy, role, tokeny, sesje
-    'auth_db': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': tmpAuthPostgres.path.replace('/', ''),
-        'USER': tmpAuthPostgres.username,
-        'PASSWORD': tmpAuthPostgres.password,
-        'HOST': tmpAuthPostgres.hostname,
-        'PORT': 5432,
-        'OPTIONS': dict(parse_qsl(tmpAuthPostgres.query)),
-    }
+    'auth_db': dj_database_url.config(
+        default=auth_database_url,
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
-
 DATABASE_ROUTERS = [
     'liga_project.db_router.DatabaseRouter',
 ]
