@@ -544,6 +544,7 @@ onMounted(() => {
               Pokaż mniej
             </button>
           </div>
+         </div>
         </section>
 
         <section id="matches" class="card">
